@@ -4,7 +4,7 @@
  * user session. This state machine implements logic for handling all user
  * interactions, detectinos, SSR and Audio Concurencies.
  *
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -393,9 +393,12 @@ static int merge_sound_models(struct sound_trigger_device *stdev,
     if (stdev->enable_debug_dumps) {
         ST_DBG_DECLARE(FILE *sm_fd = NULL; static int sm_cnt = 0);
         ST_DBG_FILE_OPEN_WR(sm_fd, ST_DEBUG_DUMP_LOCATION,
-            "st_smlib_output_merged_sm", "bin", sm_cnt++);
+            "st_smlib_output_merged_sm", "bin", sm_cnt);
         ST_DBG_FILE_WRITE(sm_fd, out_model->data, out_model->size);
         ST_DBG_FILE_CLOSE(sm_fd);
+        ALOGD("%s: SM returned from SML merge stored in: st_smlib_output_merged_sm_%d.bin",
+             __func__, sm_cnt);
+        sm_cnt++;
     }
     ALOGV("%s: Exit", __func__);
     return 0;
@@ -473,9 +476,12 @@ static int delete_from_merged_sound_model(struct sound_trigger_device *stdev,
     if (stdev->enable_debug_dumps && out_model->data && out_model->size) {
         ST_DBG_DECLARE(FILE *sm_fd = NULL; static int sm_cnt = 0);
         ST_DBG_FILE_OPEN_WR(sm_fd, ST_DEBUG_DUMP_LOCATION,
-            "st_smlib_output_deleted_sm", "bin", sm_cnt++);
+            "st_smlib_output_deleted_sm", "bin", sm_cnt);
         ST_DBG_FILE_WRITE(sm_fd, out_model->data, out_model->size);
         ST_DBG_FILE_CLOSE(sm_fd);
+        ALOGD("%s: SM returned from SML delete stored in: st_smlib_output_deleted_sm_%d.bin",
+             __func__, sm_cnt);
+        sm_cnt++;
     }
     return 0;
 
@@ -2475,11 +2481,14 @@ static int update_hw_config_on_start(st_session_t *stc_ses,
         ST_DBG_DECLARE(FILE *rc_opaque_fd = NULL;
             static int rc_opaque_cnt = 0);
         ST_DBG_FILE_OPEN_WR(rc_opaque_fd, ST_DEBUG_DUMP_LOCATION,
-            "rc_config_opaque_data", "bin", rc_opaque_cnt++);
+            "rc_config_opaque_data", "bin", rc_opaque_cnt);
         ST_DBG_FILE_WRITE(rc_opaque_fd,
             (uint8_t *)rc_config + rc_config->data_offset,
             rc_config->data_size);
         ST_DBG_FILE_CLOSE(rc_opaque_fd);
+        ALOGD("%s: rc_config opaque data dump stored in: rc_config_opaque_data_%d.bin",
+             __func__, rc_opaque_cnt);
+        rc_opaque_cnt++;
     }
 
     if (!st_hw_ses) {
@@ -3826,9 +3835,12 @@ int process_detection_event_keyphrase_v2(
                 ST_DBG_DECLARE(FILE *opaque_fd = NULL;
                     static int opaque_cnt = 0);
                 ST_DBG_FILE_OPEN_WR(opaque_fd, ST_DEBUG_DUMP_LOCATION,
-                    "detection_opaque_data", "bin", opaque_cnt++);
+                    "detection_opaque_data", "bin", opaque_cnt);
                 ST_DBG_FILE_WRITE(opaque_fd, opaque_data, opaque_size);
                 ST_DBG_FILE_CLOSE(opaque_fd);
+                ALOGD("%s: detection opaque data dump stored in: detection_opaque_data_%d.bin",
+                     __func__, opaque_cnt);
+                opaque_cnt++;
             }
         } else {
             status = parse_generic_event_without_opaque_data(st_ses, payload,
@@ -4034,10 +4046,13 @@ static int process_detection_event_keyphrase(
         if (st_ses->stdev->enable_debug_dumps) {
             ST_DBG_DECLARE(FILE *opaque_fd = NULL; static int opaque_cnt = 0);
             ST_DBG_FILE_OPEN_WR(opaque_fd, ST_DEBUG_DUMP_LOCATION,
-                                "detection_opaque_data", "bin", opaque_cnt++);
+                                "detection_opaque_data", "bin", opaque_cnt);
             ST_DBG_FILE_WRITE(opaque_fd, (opaque_data - opaque_size),
                               opaque_size);
             ST_DBG_FILE_CLOSE(opaque_fd);
+            ALOGD("%s: detection opaque data dump stored in: detection_opaque_data_%d.bin",
+                     __func__, opaque_cnt);
+            opaque_cnt++;
         }
 
     } else {
@@ -4342,6 +4357,7 @@ static void *aggregator_thread_loop(void *st_session)
                 ATRACE_ASYNC_END("sthal: detection success",
                     st_ses->sm_handle);
 
+                stc_ses->ss_det_count++;
                 status = process_detection_event(st_ses,
                     st_ses->det_session_ev->payload.detected.timestamp,
                     st_ses->det_session_ev->payload.detected.detect_status,
@@ -4370,7 +4386,7 @@ static void *aggregator_thread_loop(void *st_session)
                 capture_requested = stc_ses->rc_config->capture_requested;
                 cookie = stc_ses->cookie;
                 callback_time = get_current_time_ns();
-                ALOGD("%s:[c%d] Second stage detected successfully, "
+                ALOGD("%s:[c%d] Second stage detection SUCCESS, "
                     "calling client callback", __func__, stc_ses->sm_handle);
                 ALOGD("%s: Total sthal processing time: %llums", __func__,
                     (callback_time - st_ses->detection_event_time) /
@@ -4413,8 +4429,9 @@ static void *aggregator_thread_loop(void *st_session)
             } else {
                 ATRACE_ASYNC_END("sthal: detection reject",
                     st_ses->sm_handle);
-                ALOGD("%s: Second stage did NOT detect, restarting st_session",
-                    __func__);
+                stc_ses->ss_rej_count++;
+                ALOGD("%s: Second stage detection REJECT, count = %d, "
+                    "restarting st_session", __func__, stc_ses->ss_rej_count);
                 st_ses->hw_ses_current->fptrs->stop_buffering(
                     st_ses->hw_ses_current);
                 start_second_stage_for_client(stc_ses);
@@ -5368,6 +5385,7 @@ static int active_state_fn(st_proxy_session_t *st_ses, st_session_ev_t *ev)
             pthread_mutex_unlock(&st_ses->lock);
             break;
         }
+        stc_ses->fs_det_count++;
         st_ses->det_stc_ses = stc_ses;
         st_ses->hw_ses_current->enable_second_stage = false; /* Initialize */
         stc_ses->detection_sent = false;
@@ -5429,9 +5447,13 @@ static int active_state_fn(st_proxy_session_t *st_ses, st_session_ev_t *ev)
         if (!status && st_ses->lab_enabled) {
             if (stc_ses->rc_config->capture_requested ||
                 !list_empty(&stc_ses->second_stage_list)) {
-                if (st_ses->stdev->enable_debug_dumps) {
+                if (st_ses->stdev->enable_debug_dumps &&
+                    stc_ses->rc_config->capture_requested) {
                     ST_DBG_FILE_OPEN_WR(st_ses->lab_fp, ST_DEBUG_DUMP_LOCATION,
-                        "lab_capture", "bin", file_cnt++);
+                        "lab_capture", "bin", file_cnt);
+                    ALOGD("%s: Voice Request stored in: lab_capture_%d.bin",
+                        __func__, file_cnt);
+                    file_cnt++;
                 }
                 STATE_TRANSITION(st_ses, buffering_state_fn);
                 lab_enabled = true;
@@ -5808,10 +5830,10 @@ static int buffering_state_fn(st_proxy_session_t *st_ses, st_session_ev_t *ev)
         /* Note: this function may block if there is no PCM data ready*/
         hw_ses->fptrs->read_pcm(hw_ses, ev->payload.readpcm.out_buff,
             ev->payload.readpcm.out_buff_size);
-        if (st_ses->stdev->enable_debug_dumps) {
+        if (st_ses->stdev->enable_debug_dumps &&
+            stc_ses->rc_config->capture_requested)
             ST_DBG_FILE_WRITE(st_ses->lab_fp, ev->payload.readpcm.out_buff,
                 ev->payload.readpcm.out_buff_size);
-        }
         break;
     case ST_SES_EV_END_BUFFERING:
         if (stc_ses == st_ses->det_stc_ses) {
@@ -5853,7 +5875,8 @@ static int buffering_state_fn(st_proxy_session_t *st_ses, st_session_ev_t *ev)
         hw_ses->fptrs->stop_buffering(hw_ses);
         STATE_TRANSITION(st_ses, active_state_fn);
         DISPATCH_EVENT(st_ses, *ev, status);
-        if (st_ses->stdev->enable_debug_dumps)
+        if (st_ses->stdev->enable_debug_dumps &&
+            stc_ses->rc_config->capture_requested)
             ST_DBG_FILE_CLOSE(st_ses->lab_fp);
         break;
 

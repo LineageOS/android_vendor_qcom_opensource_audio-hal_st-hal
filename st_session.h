@@ -4,7 +4,7 @@
  * abstraction represents a single st session from the application/framework
  * point of view.
  *
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -161,6 +161,10 @@ struct st_session {
     struct sound_model_info sm_info;
 
     st_module_type_t f_stage_version;
+
+    uint32_t fs_det_count;
+    uint32_t ss_det_count;
+    uint32_t ss_rej_count;
 };
 
 struct st_proxy_session {
