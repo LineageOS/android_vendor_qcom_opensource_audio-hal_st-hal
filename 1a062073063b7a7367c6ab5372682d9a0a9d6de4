@@ -22,6 +22,30 @@
       },
       "revId": "1a062073063b7a7367c6ab5372682d9a0a9d6de4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8ee0dade_297a7601",
+        "filename": "st_hw_session_gcs.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-01-24T13:14:59Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "e85ef215_7d524840",
+      "range": {
+        "startLine": 51,
+        "startChar": 0,
+        "endLine": 51,
+        "endChar": 22
+      },
+      "revId": "1a062073063b7a7367c6ab5372682d9a0a9d6de4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
