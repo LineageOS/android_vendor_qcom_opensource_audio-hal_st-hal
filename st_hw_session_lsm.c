@@ -563,7 +563,8 @@ static bool fill_lsm_det_event_type_params
    lsm_param_info_t *det_event_type_params __unused,
    struct st_module_param_info *mparams __unused,
    uint16_t stage_idx __unused,
-   st_module_type_t version __unused
+   st_module_type_t version __unused,
+   st_hw_session_lsm_t *p_lsm_ses __unused
 )
 {
     return false;
