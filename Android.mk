@@ -17,6 +17,10 @@ endif
 
 LOCAL_CFLAGS += -Wall -Werror
 
+ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK), true)
+  LOCAL_CFLAGS += -DENABLE_SVA_MIXER_CTL
+endif
+
 LOCAL_SRC_FILES := \
     sound_trigger_hw.c \
     sound_trigger_platform.c \
