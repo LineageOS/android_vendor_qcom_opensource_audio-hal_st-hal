@@ -3,6 +3,7 @@
  * This file implements the hw session functionality specific to LSM HW
  *
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1343,6 +1344,7 @@ static int allocate_lab_buffers_ape(st_hw_session_lsm_t* p_lsm_ses)
     pthread_create(&p_lsm_ses->buffer_thread, &attr,
         buffer_thread_loop, p_lsm_ses);
 
+    pthread_attr_destroy(&attr);
     return status;
 
 error_exit:
@@ -2061,6 +2063,7 @@ static int ape_reg_sm_params(st_hw_session_t* p_ses,
     while (status && (retry_num < SOUND_TRIGGER_PCM_MAX_RETRY)) {
         usleep(SOUND_TRIGGER_PCM_SLEEP_WAIT);
         retry_num++;
+        pcm_stop(p_lsm_ses->pcm);
         ALOGI("%s: pcm_start retrying..status %d errno %d, retry cnt %d",
               __func__, status, errno, retry_num);
         status = pcm_start(p_lsm_ses->pcm);
