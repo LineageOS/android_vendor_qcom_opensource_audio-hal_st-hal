@@ -82,21 +82,21 @@ struct graphite_data_cmdrsp_hdr {
 
 /* GCS MODULES */
 
-struct graphite_modinfo {
+struct gcs_module_info {
     /* st_hw_session_gcs.c line 632 */
-    unsigned int MID;
-    unsigned int IID;
+    uint32_t MID;
+    uint32_t IID;
 };
 
 struct gcs_module_param_info { /* st_hw_session_gcs line 522 */
-    struct graphite_modinfo module_info;
-    unsigned int PID; /* st_hw_session_gcs.c line 206 */
+    struct gcs_module_info module_info;
+    uint32_t PID; /* st_hw_session_gcs.c line 206 */
 };
 
 struct gcs_event_rsp {
     struct gcs_module_param_info module_param_info;
+    uint32_t payload_size;
     void *payload;
-    uint32_t payload_size; /* 32bits?? */
 };
 
 /* MODULES END */
