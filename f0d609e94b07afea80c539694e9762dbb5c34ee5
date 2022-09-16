@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e2070a4e_5bd84637",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10258
+      },
+      "writtenOn": "2022-09-16T05:33:49Z",
+      "side": 1,
+      "message": "Fixup I4dcb9b0bc07393788988fea99644079d5fd383f3, some sizes and orders are inconsistent with bsp",
+      "revId": "f0d609e94b07afea80c539694e9762dbb5c34ee5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
