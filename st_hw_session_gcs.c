@@ -113,7 +113,7 @@ typedef int32_t(*event_cb_ptr)(uint32_t graph_hdl,
 /* Line 242: gcs_data_cmdrsp_cb */
 typedef int32_t(*data_cmd_cb_ptr)(uint32_t graph_handle,
     void *rsp,
-    size_t rsp_size,
+    uint32_t rsp_size,
     void *cookie, int32_t cmd_status);
 
 /* gcs functions loaded from dynamic library */
