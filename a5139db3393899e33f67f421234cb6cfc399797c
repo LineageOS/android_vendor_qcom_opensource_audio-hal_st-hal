@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0146ea20_71691aec",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19282
+      },
+      "writtenOn": "2022-12-02T18:35:26Z",
+      "side": 1,
+      "message": "SoundTrigger HAL tests are passing with this commit and some tests are failing without this commit.\n\n```\n    Test: atest CtsSoundTriggerTestCases\n    Test: atest VtsHalSoundtriggerV2_0TargetTest\n    Test: atest VtsHalSoundtriggerV2_1TargetTest\n    Test: atest VtsHalSoundtriggerV2_2TargetTest\n```\n\nhttps://hastebin.com/uxulaqowan.less",
+      "revId": "a5139db3393899e33f67f421234cb6cfc399797c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
