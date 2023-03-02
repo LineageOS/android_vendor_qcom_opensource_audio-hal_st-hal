@@ -1,6 +1,7 @@
 /* st_hw_session_lsm.h
  *
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -91,6 +92,13 @@ struct sound_trigger_device;
 #else
   typedef void* st_lsm_det_event_type_t;
 #endif
+
+enum st_lsm_ape_control {
+    ST_LSM_START = 1,
+    ST_LSM_STOP_LAB,
+    ST_LSM_ABORT_EVENT,
+    ST_LSM_STOP
+};
 
 struct multi_sm_conf_levels {
     uint32_t model_id;
