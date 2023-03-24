@@ -3,7 +3,7 @@
  * This file implements the hw session functionality specific to LSM HW
  *
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -58,6 +58,7 @@
 #include "sound_trigger_hw.h"
 #include "st_hw_common.h"
 
+#define LSM_LUT_CLEAR_INFO  _IOW('U', 0xF0, int)
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
@@ -115,6 +116,14 @@ typedef struct {
     int8_t polarActivityGUI[DOA_POLAR_ACTIVITY_INDICATORS];
 } st_ffv_doa_tracking_monitor_t;
 
+#ifdef ENABLE_SVA_MIXER_CTL
+struct st_lsm_cdev_info
+{
+    int fd;
+    int det_status;
+};
+#endif
+
 static struct pcm_config stdev_ape_pcm_config = {
     .channels = SOUND_TRIGGER_CHANNEL_MODE_MONO,
     .rate = SOUND_TRIGGER_SAMPLING_RATE_16000,
@@ -165,6 +174,26 @@ int pcm_ioctl(struct pcm *pcm, int request, ...)
 typedef struct lsm_params_info_v2 lsm_param_info_t;
 typedef struct lsm_param_payload_v2 lsm_param_payload_t;
 
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_set_session_data(struct mixer * st_mixer, void *ses_data)
+{
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM SESSION_DATA SET";
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+    if (!ctl) {
+        ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                __func__, mixer_ctl_name);
+    }
+
+    if (mixer_ctl_set_array(ctl, ses_data, sizeof(struct snd_lsm_session_data_v2)) < 0) {
+        ALOGE("%s: Could not set LSM load mixer control", __func__);
+    }
+
+    return 0;
+}
+#endif
+
 static int lsm_set_session_data_v2(st_hw_session_t *p_ses)
 {
     st_hw_session_lsm_t *p_lsm_ses = (st_hw_session_lsm_t*)p_ses;
@@ -194,7 +223,11 @@ static int lsm_set_session_data_v2(st_hw_session_t *p_ses)
     }
 
     ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_set_session_data_v2");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_session_data(p_ses->stdev->mixer, (void *)(&ses_data));
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_SESSION_DATA_V2, &ses_data);
+#endif
     ATRACE_END();
     if (status)
             ALOGE("%s: ERROR. SNDRV_LSM_SET_SESSION_DATA_V2 failed status(%d)",
@@ -252,6 +285,33 @@ static void lsm_fill_param_info
     p_info->stage_idx = stage_idx;
 }
 
+#ifdef ENABLE_SVA_MIXER_CTL
+static int lsm_mixer_set_module_params
+(
+    st_hw_session_lsm_t *p_lsm_ses,
+    struct snd_lsm_module_params *lsm_params
+)
+{
+    const char *mixer_ctl_name = "LSM MODULE_PARAMS SET";
+    struct mixer_ctl *ctl = NULL;
+    st_hw_session_t p_ses = p_lsm_ses->common;
+    int ret = 0;
+
+    ctl = mixer_get_ctl_by_name(p_ses.stdev->mixer, mixer_ctl_name);
+    if (!ctl) {
+        ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                __func__, mixer_ctl_name);
+    }
+
+    ret = mixer_ctl_set_array(ctl, lsm_params, sizeof(struct snd_lsm_module_params));
+    if (ret < 0) {
+        ALOGE("%s: Could not set LSM set module params, ret = %d", __func__, ret);
+    }
+
+    return ret;
+}
+#endif
+
 static int lsm_set_module_params
 (
     st_hw_session_lsm_t *p_lsm_ses,
@@ -266,7 +326,11 @@ static int lsm_set_module_params
     }
 
     ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_set_module_params_v2");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_mixer_set_module_params(p_lsm_ses, lsm_params);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_MODULE_PARAMS_V2, lsm_params);
+#endif
     ATRACE_END();
 
     if (status)
@@ -357,17 +421,46 @@ static void lsm_fill_param_header
 #endif
 
 #ifdef LSM_EVENT_TIMESTAMP_MODE_SUPPORT
+
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_set_fwk_mode_mixer_ctl(struct mixer * st_mixer, int buf_en)
+{
+    int ret = 0;
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM FWK_MODE SET";
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+     if (!ctl) {
+          ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                  __func__, mixer_ctl_name);
+     }
+
+    ret = mixer_ctl_set_value(ctl, 0, buf_en);
+    if (ret < 0) {
+         ALOGE("%s: Could not set LSM load mixer control", __func__);
+    }
+
+    return ret;
+}
+#endif
+
 static int set_lsm_fwk_mode(st_hw_session_lsm_t *p_lsm_ses)
 {
     int status;
     struct st_vendor_info *v_info = p_lsm_ses->common.vendor_uuid_info;
     unsigned int fwk_mode = LSM_EVENT_NON_TIME_STAMP_MODE;
+    st_hw_session_t p_ses;
 
     if (v_info && (v_info->fwk_mode == SOUND_TRIGGER_EVENT_TIME_STAMP_MODE))
         fwk_mode = LSM_EVENT_TIME_STAMP_MODE;
 
+    p_ses = p_lsm_ses->common;
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_fwk_mode_mixer_ctl(p_ses.stdev->mixer, fwk_mode);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_FWK_MODE_CONFIG,
                        &fwk_mode);
+#endif
     if (status)
         ALOGE("%s: SNDRV_LSM_SET_FWK_MODE_CONFIG status=%d", __func__, status);
 
@@ -431,9 +524,31 @@ static uint64_t get_event_timestamp(st_lsm_event_status_t *params __unused)
 #endif
 
 #ifdef LSM_POLLING_ENABLE_SUPPORT
+
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_set_port_mixer_ctl(struct mixer * st_mixer)
+{
+    int ret = 0;
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM PORT SET";
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+     if (!ctl) {
+          ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                  __func__, mixer_ctl_name);
+     }
+    ret = mixer_ctl_set_value(ctl, 0, 0);
+    if (ret < 0) {
+         ALOGE("%s: Could not set LSM load mixer control", __func__);
+    }
+    return ret;
+}
+#endif
+
 static int lsm_set_port(st_hw_session_lsm_t *p_lsm_ses)
 {
     int status = 0;
+    st_hw_session_t p_ses;
 
     if (p_lsm_ses->common.stdev->lpi_enable &&
         p_lsm_ses->common.vendor_uuid_info->lab_dam_cfg_payload.token_id) {
@@ -443,8 +558,12 @@ static int lsm_set_port(st_hw_session_lsm_t *p_lsm_ses)
         if (status)
             return status;
     }
-
+    p_ses = p_lsm_ses->common;
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_port_mixer_ctl(p_ses.stdev->mixer);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_PORT);
+#endif
     if (status)
         ALOGE("%s: ERROR. SNDRV_LSM_SET_PORT, status=%d", __func__, status);
     return status;
@@ -487,6 +606,27 @@ static bool fill_lsm_poll_enable_params
 #endif
 
 #if (SNDRV_LSM_VERSION >= SNDRV_PROTOCOL_VERSION(0, 3, 0))
+
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_set_input_hw_params_mixer_ctl(struct mixer * st_mixer, struct snd_lsm_input_hw_params *params)
+{
+    int ret = 0;
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM INPUT_HW_PARAMS SET";
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+     if (!ctl) {
+          ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                  __func__, mixer_ctl_name);
+     }
+    ret = mixer_ctl_set_array(ctl, params, sizeof(struct snd_lsm_input_hw_params));
+    if (ret < 0) {
+         ALOGE("%s: Could not set input hw params control", __func__);
+    }
+    return ret;
+}
+#endif
+
 static int send_lsm_input_hw_params(st_hw_session_t *p_ses)
 {
     struct st_vendor_info *v_info = p_ses->vendor_uuid_info;
@@ -504,8 +644,12 @@ static int send_lsm_input_hw_params(st_hw_session_t *p_ses)
     ALOGV("%s: set SNDRV_LSM_SET_INPUT_HW_PARAMS sr=%d bw=%d ch=%d ", __func__,
           params.sample_rate, params.bit_width, params.num_channels);
 
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_input_hw_params_mixer_ctl(p_ses->stdev->mixer, &params);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_INPUT_HW_PARAMS,
                        &params);
+#endif
     if (status) {
         ALOGE("%s: SNDRV_LSM_SET_INPUT_HW_PARAMS failed, status [%d] - %s",
               __func__, status, strerror(errno));
@@ -1109,6 +1253,28 @@ static void *buffer_thread_loop(void *context)
     return NULL;
 }
 
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_get_det_event_info_control(struct mixer * st_mixer, void *arg)
+{
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM DET_EVENT_INFO GET";
+
+    struct snd_lsm_event_status *params = (struct snd_lsm_event_status *)arg;
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+    if (!ctl) {
+        ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                __func__, mixer_ctl_name);
+    }
+
+    if (mixer_ctl_get_array(ctl, params, params->payload_size + sizeof(*params)) < 0) {
+        ALOGE("%s: Could not get det event info", __func__);
+        return -EFAULT;
+    }
+
+    return 0;
+}
+#endif
 
 static void *callback_thread_loop(void *context)
 {
@@ -1118,8 +1284,26 @@ static void *callback_thread_loop(void *context)
     char *st_lsm_event_cmd = NULL;
     unsigned int payload_alloc_size = SOUND_TRIGGER_MAX_EVNT_PAYLOAD_SIZE;
     int status = 0;
+    void *params_status = NULL;
     int event_status, request;
     st_hw_sess_event_t hw_sess_event; /* used to report event to st_session */
+
+#ifdef ENABLE_SVA_MIXER_CTL
+    struct mixer * st_mixer = NULL;
+    st_mixer = p_lsm_ses->common.stdev->mixer;
+    int lsm_cdev = 0;
+    struct st_lsm_cdev_info *cdev_query = NULL;
+
+    lsm_cdev = open("/dev/msm_lsm_cdev", O_RDONLY|O_WRONLY);
+    if (lsm_cdev < 0)
+        ALOGE("LSM CDEV open failed");
+
+    cdev_query =  calloc(1, sizeof(*cdev_query));
+    if (cdev_query == NULL) {
+        ALOGE("%s: ERROR. insufficient memory for cdev query", __func__);
+        goto exit;
+    }
+#endif
 
     if (p_lsm_ses == NULL) {
         ALOGE("%s: ERROR. null context.. exiting", __func__);
@@ -1139,16 +1323,25 @@ static void *callback_thread_loop(void *context)
 
     set_lsm_fwk_mode(p_lsm_ses);
     update_lsm_event_status_info(p_lsm_ses, &request, &st_lsm_event_cmd);
+    params_status = (void *)(&(params->status));
 
     while (!p_lsm_ses->exit_callback_thread) {
         params->payload_size = payload_alloc_size;
         ALOGI("%s:[%d] Waiting for %s",
                __func__, p_lsm_ses->common.sm_handle, st_lsm_event_cmd);
         pthread_mutex_unlock(&p_lsm_ses->callback_thread_lock);
+#ifdef ENABLE_SVA_MIXER_CTL
+        cdev_query->fd = p_lsm_ses->pcm_id;
+        status = ioctl(lsm_cdev, SNDRV_LSM_GENERIC_DET_EVENT, cdev_query);
+
+        if (cdev_query->det_status == LSM_VOICE_WAKEUP_STATUS_DETECTED)
+            status = lsm_get_det_event_info_control(st_mixer, params_status);
+#else
         if (p_lsm_ses->common.is_generic_event)
             status = pcm_ioctl(p_lsm_ses->pcm, request, &params->status);
         else
             status = pcm_ioctl(p_lsm_ses->pcm, request, params);
+#endif
         pthread_mutex_lock(&p_lsm_ses->callback_thread_lock);
 
         ALOGI("%s:[%d] Received %s status=%d",
@@ -1262,6 +1455,12 @@ static void *callback_thread_loop(void *context)
         pthread_mutex_lock(&p_lsm_ses->callback_thread_lock);
     }
 
+#ifdef ENABLE_SVA_MIXER_CTL
+    //Before exiting the thread, intimate lut to clear the info.
+    status = ioctl(lsm_cdev, LSM_LUT_CLEAR_INFO, p_lsm_ses->pcm_id);
+    free(cdev_query);
+    close(lsm_cdev);
+#endif
     if (st_lsm_event_cmd)
         free(st_lsm_event_cmd);
 
@@ -1689,7 +1888,11 @@ static int ape_reg_sm(st_hw_session_t *p_ses, void *sm_data,
            opens DSP LSM session with this ioctl cmd */
         ses_data.app_id = LSM_VOICE_WAKEUP_APP_ID_V2;
         ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_set_session_data");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_session_data(p_ses->stdev->mixer, (void *)(&ses_data));
+#else
         status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_SET_SESSION_DATA, &ses_data);
+#endif
         ATRACE_END();
         if (status) {
             ALOGE("%s: ERROR. SNDRV_LSM_SET_SESSION_DATA failed status %d",
@@ -1829,6 +2032,24 @@ static int set_param_dereg_multi_sm(st_hw_session_lsm_t *p_ses,
     return status;
 }
 
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_send_lab_control_mixer_ctl(struct mixer * st_mixer, int buf_en)
+{
+    const char *mixer_ctl_name = "LSM LAB_CONTROL SET";
+    struct mixer_ctl *ctl = NULL;
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+     if (!ctl) {
+          ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                  __func__, mixer_ctl_name);
+     }
+    if (mixer_ctl_set_value(ctl, 0, buf_en) < 0) {
+         ALOGE("%s: Could not set LSM load mixer control", __func__);
+         return -EFAULT;
+    }
+    return 0;
+}
+#endif
+
 static int ape_dereg_sm(st_hw_session_t *p_ses, uint32_t model_id)
 {
     int status = 0, buf_en = 0;
@@ -1919,7 +2140,11 @@ static int ape_dereg_sm(st_hw_session_t *p_ses, uint32_t model_id)
             if ((p_lsm_ses->num_stages == 1) &&
                 !(p_lsm_ses->lsm_usecase.param_tag_tracker & PARAM_LAB_CONTROL_BIT)) {
                 ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_lab_control");
+#ifdef ENABLE_SVA_MIXER_CTL
+        status = lsm_send_lab_control_mixer_ctl(p_ses->stdev->mixer, buf_en);
+#else
                 status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_LAB_CONTROL, &buf_en);
+#endif
                 ATRACE_END();
                 if (status)
                     ALOGE("%s: ERROR. SNDRV_LSM_LAB_CONTROL failed, status=%d",
@@ -2510,7 +2735,12 @@ static int ape_reg_sm_params(st_hw_session_t* p_ses,
         if (p_lsm_ses->num_stages == 1 &&
             !(p_lsm_ses->lsm_usecase.param_tag_tracker & PARAM_LAB_CONTROL_BIT)) {
             ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_lab_control");
+#ifdef ENABLE_SVA_MIXER_CTL
+        status = lsm_send_lab_control_mixer_ctl(p_ses->stdev->mixer, buf_en);
+#else
             status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_LAB_CONTROL, &buf_en);
+#endif
+
             ATRACE_END();
             if (status) {
                 ALOGE("%s: ERROR. SNDRV_LSM_LAB_CONTROL failed, status=%d",
@@ -2572,6 +2802,25 @@ static int ape_dereg_sm_params(st_hw_session_t* p_ses)
     return 0;
 }
 
+#ifdef ENABLE_SVA_MIXER_CTL
+int lsm_set_ape_control_mixer_ctl(struct mixer * st_mixer, int operation)
+{
+    struct mixer_ctl *ctl = NULL;
+    const char *mixer_ctl_name = "LSM APE_CONTROL CMD";
+
+    ctl = mixer_get_ctl_by_name(st_mixer, mixer_ctl_name);
+     if (!ctl) {
+          ALOGE("%s: Could not get ctl for mixer cmd - %s",
+                  __func__, mixer_ctl_name);
+     }
+    if (mixer_ctl_set_value(ctl, 0, operation) < 0) {
+         ALOGE("%s: Could not set LSM load mixer control", __func__);
+         return -EFAULT;
+    }
+    return 0;
+}
+#endif
+
 static int ape_start(st_hw_session_t* p_ses)
 {
     int status = 0;
@@ -2587,7 +2836,11 @@ static int ape_start(st_hw_session_t* p_ses)
     p_lsm_ses->exit_lab_processing = false;
 
     ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_start");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_ape_control_mixer_ctl(p_ses->stdev->mixer, ST_LSM_START);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_START);
+#endif
     ATRACE_END();
     if (status) {
         ALOGE("%s: ERROR. SNDRV_LSM_START failed, status=%d", __func__, status);
@@ -2611,7 +2864,11 @@ static int ape_stop(st_hw_session_t* p_ses)
     }
 
     ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_stop");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_ape_control_mixer_ctl(p_ses->stdev->mixer, ST_LSM_STOP);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_STOP);
+#endif
     ATRACE_END();
     if (status)
         ALOGE("%s: ERROR. SNDDRV_LSM_STOP failed, status=%d", __func__, status);
@@ -2635,18 +2892,25 @@ static int ape_stop_buffering(st_hw_session_t* p_ses)
     }
 
     ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_lsm_stop_lab");
+#ifdef ENABLE_SVA_MIXER_CTL
+    status = lsm_set_ape_control_mixer_ctl(p_ses->stdev->mixer, ST_LSM_STOP_LAB);
+#else
     status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_STOP_LAB);
+#endif
     ATRACE_END();
     if (status) {
         ALOGE("%s: ERROR. SNDRV_LSM_STOP_BUFFERING failed status %d", __func__,
            status);
-    } else {
+    }
+#ifndef ENABLE_SVA_MIXER_CTL
+    else {
         ATRACE_BEGIN("sthal:lsm: pcm_ioctl sndrv_pcm_ioctl_reset");
         status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_PCM_IOCTL_RESET);
         ATRACE_END();
         if (status) ALOGE("%s: ERROR. SNDRV_PCM_IOCTL_RESET failed status %d", __func__,
                status);
     }
+#endif
 
     ALOGD("%s:[%d] Exit, status=%d", __func__, p_ses->sm_handle, status);
     return status;
@@ -3076,7 +3340,9 @@ static void request_exit_callback_thread(st_hw_session_lsm_t *p_lsm_ses)
     int status;
     int wait_result;
     struct timespec timeout;
+    st_hw_session_t p_ses;
 
+    p_ses = p_lsm_ses->common;
     pthread_mutex_lock(&p_lsm_ses->callback_thread_lock);
     p_lsm_ses->exit_callback_thread = true;
     for (int i = 0; i < LSM_ABORT_RETRY_COUNT; i++) {
@@ -3086,7 +3352,11 @@ static void request_exit_callback_thread(st_hw_session_lsm_t *p_lsm_ses)
             pthread_mutex_unlock(&p_lsm_ses->callback_thread_lock);
             return;
         }
+#ifdef ENABLE_SVA_MIXER_CTL
+        status = lsm_set_ape_control_mixer_ctl(p_ses.stdev->mixer, ST_LSM_ABORT_EVENT);
+#else
         status = pcm_ioctl(p_lsm_ses->pcm, SNDRV_LSM_ABORT_EVENT);
+#endif
         ATRACE_END();
         GET_WAIT_TIMESPEC(timeout, LSM_ABORT_WAIT_TIMEOUT_NS);
         wait_result = pthread_cond_timedwait(&p_lsm_ses->callback_thread_cond,
