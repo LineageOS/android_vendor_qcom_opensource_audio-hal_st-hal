@@ -1287,6 +1287,11 @@ static void *callback_thread_loop(void *context)
     int event_status, request;
     st_hw_sess_event_t hw_sess_event; /* used to report event to st_session */
 
+    if (p_lsm_ses == NULL) {
+        ALOGE("%s: ERROR. null context.. exiting", __func__);
+        return NULL;
+    }
+
 #ifdef ENABLE_SVA_MIXER_CTL
     struct mixer * st_mixer = NULL;
     st_mixer = p_lsm_ses->common.stdev->mixer;
@@ -1304,10 +1309,6 @@ static void *callback_thread_loop(void *context)
     }
 #endif
 
-    if (p_lsm_ses == NULL) {
-        ALOGE("%s: ERROR. null context.. exiting", __func__);
-        return NULL;
-    }
     ALOGD("%s:[%d] Enter", __func__, p_lsm_ses->common.sm_handle);
 
     setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_DEFAULT);
