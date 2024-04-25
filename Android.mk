@@ -75,11 +75,12 @@ LOCAL_HEADER_LIBRARIES += libhardware_headers \
                           libsystem_headers
 endif
 
-LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/graphite-client/gcs
-LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-audio/graphite-client/osal
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/audio
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/techpack/audio/include
+
+LOCAL_HEADER_LIBRARIES += libgcs_headers
+LOCAL_HEADER_LIBRARIES += libgcs-osal_headers
 
 ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK),true)
 LOCAL_HEADER_LIBRARIES += qti_legacy_audio_kernel_uapi
