@@ -112,10 +112,13 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_VENDOR_MODULE := true
 LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
-LOCAL_COPY_HEADERS_TO   := mm-audio/sound_trigger
-LOCAL_COPY_HEADERS      := sound_trigger_prop_intf.h
-
 include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := sound_trigger.primary.$(TARGET_BOARD_PLATFORM)_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS   := $(LOCAL_PATH)/
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
 
 #
 # to build sound_trigger_test executable
