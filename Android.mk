@@ -82,6 +82,11 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/audio
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/techpack/audio/include
 
+ifeq ($(TARGET_BOARD_AUTO),true)
+LOCAL_HEADER_LIBRARIES += libgcs_headers
+LOCAL_HEADER_LIBRARIES += libgcs-osal_headers
+endif
+
 ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK),true)
 LOCAL_HEADER_LIBRARIES += qti_legacy_audio_kernel_uapi
 endif
@@ -113,6 +118,12 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := sound_trigger.primary.$(TARGET_BOARD_PLATFORM)_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS   := $(LOCAL_PATH)/
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
 
 #
 # to build sound_trigger_test executable
