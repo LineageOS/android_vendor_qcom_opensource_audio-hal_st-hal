@@ -43,41 +43,12 @@
  */
 /* ========================================================================*/
 
-
-typedef enum PDK_STAGE2_STRUCT_ID {
-    SVA_ID_CONFIG,
-    SVA_ID_VERSION,
-    SVA_ID_MEM_CONFIG,
-    SVA_ID_SCRATCH_PARAM,
-    SVA_ID_THRESHOLD_CONFIG,  /** threshold configuration */
-    SVA_ID_REINIT_ALL,        /** initialize all internal variables */
-    SVA_ID_REINIT_NETWORK,    /** initialize network layers */
-    SVA_ID_RESULT,            /** retrieve detection result */
-    SVA_ID_RMS_THRESHOLD_CONFIG,  /** RMS threshold configuration */
-    SVA_ID_END_DETECTION_CONFIG,  /** keyword end detection configuration */
-    SVA_ID_THRESHOLD_TABLE_CONFIG, /** threshold table */
-} SVA_STRUCT_ID;
-
-typedef struct pdk_stage2_threshold_config {
-    uint32_t struct_size;
-    int32_t smm_threshold;
-} sva_threshold_config_t;
-
+#include "capi_v2.h"
 
 typedef struct pdk_stage2_rms_threshold_config {
     uint32_t struct_size;
     int32_t rms_threshold;
 } sva_rms_threshold_config_t;
-
-typedef struct pdk_stage2_result {
-    uint32_t struct_size;
-    uint32_t reserved;
-    int32_t is_detected;
-    int32_t best_confidence;
-    int32_t start_position;
-    int32_t end_position;  // relative position from current frame
-    int32_t current_confidence;
-} sva_result_t;
 
 typedef struct pdk_stage2_config {
     uint32_t struct_size;
