@@ -150,3 +150,9 @@ include $(BUILD_HEADER_LIBRARY)
 
 endif
 endif
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libcapiv2_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS   := $(LOCAL_PATH)/ext_headers
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
