@@ -1,7 +1,7 @@
+LOCAL_PATH := $(call my-dir)
+
 ifeq ($(strip $(BOARD_SUPPORTS_OPENSOURCE_STHAL)),true)
 ifneq ($(TARGET_USES_QCOM_AUDIO_AR),true)
-
-LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
@@ -150,3 +150,9 @@ include $(BUILD_HEADER_LIBRARY)
 
 endif
 endif
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libcapiv2_headers
+LOCAL_EXPORT_C_INCLUDE_DIRS   := $(LOCAL_PATH)/ext_headers
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_HEADER_LIBRARY)
