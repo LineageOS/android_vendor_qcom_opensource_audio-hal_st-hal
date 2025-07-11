@@ -1,0 +1,105 @@
+soong_namespace {
+}
+
+soong_config_module_type {
+    name: "target_board_platform_cc_library_shared",
+    module_type: "cc_library_shared",
+    config_namespace: "ANDROID",
+    value_variables: ["target_board_platform"],
+    properties: [
+        "name",
+    ],
+}
+
+target_board_platform_cc_library_shared {
+    soong_config_variables: {
+        target_board_platform: {
+            name: "sound_trigger.primary.%s",
+            conditions_default: {
+                name: "sound_trigger.primary.qcom",
+            },
+        },
+    },
+    owner: "qti",
+    relative_install_path: "hw",
+    vendor: true,
+
+    cflags: [
+        "-D_ANDROID_",
+        "-DST_SUPPORT_GET_MODEL_STATE",
+        "-Wall",
+        "-Werror",
+    ] + select(soong_config_variable("qtiaudio", "feature_keep_alive"), {
+        "true": ["-DUSE_KEEP_ALIVE"],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_lpma"), {
+        "true": ["-DST_LMPA_EXTN_ENABLED"],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_qsthw_api"), {
+        "true": ["-DST_EXTN_ENABLED"],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_sound_trigger_cpu_affinity_set"), {
+        "true": [
+            "-D_GNU_SOURCE",
+            "-DSOUND_TRIGGER_CPU_AFFINITY_SET",
+        ],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_sva_multi_stage"), {
+        "true": ["-DST_MULTI_STAGE_ENABLED"],
+        default: [],
+    }) + select(soong_config_variable("ANDROID", "target_board_platform"), {
+        any @ board_platform: ["-DSOUND_TRIGGER_PLATFORM=" + board_platform],
+        default: ["-DSOUND_TRIGGER_PLATFORM=qcom"],
+    }),
+
+    srcs: [
+        "sound_trigger_hw.c",
+        "sound_trigger_platform.c",
+        "st_session.c",
+        "st_hw_session_lsm.c",
+        "st_hw_session_gcs.c",
+        "st_hw_common.c",
+        "st_buffering.c",
+    ] + select(soong_config_variable("qtiaudio", "feature_lpma"), {
+        "true": ["st_extn/st_hw_lpma_extn.c"],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_qsthw_api"), {
+        "true": [
+            "st_extn/st_hw_extn.c",
+            "st_extn/st_hw_extn_intf.c",
+        ],
+        default: [],
+    }) + select(soong_config_variable("qtiaudio", "feature_sva_multi_stage"), {
+        "true": ["st_second_stage.c"],
+        default: [],
+    }),
+
+    include_dirs: [
+        "external/expat/lib",
+        "external/tinyalsa/include",
+        "system/media/audio_route/include",
+    ],
+
+    local_include_dirs: [
+        "st_extn"
+    ] + select(soong_config_variable("qtiaudio", "feature_sva_multi_stage"), {
+        "true": ["ext_headers"],
+        default: [],
+    }),
+
+    header_libs: [
+        "audio_kernel_headers",
+        "libhardware_headers",
+        "libsystem_headers",
+    ],
+
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libtinyalsa",
+        "libaudioroute",
+        "libdl",
+        "libexpat",
+        "libhardware_legacy",
+    ],
+}
